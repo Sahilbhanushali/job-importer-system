@@ -54,15 +54,15 @@ export const startWorker = () => {
       return `Import Summary: ${newJobs} new, ${updatedJobs} updated, ${failedJobs.length} failed`;
     },
     {
-      connection: redisConfig,
+      connection: redis,
       lockDuration: 600000,
       removeOnComplete: {
         age: 3600,
-        count: 1000,
+        count: 100,
       },
       removeOnFail: {
         age: 3600,
-        count: 500,
+        count: 50,
       },
     }
   );
