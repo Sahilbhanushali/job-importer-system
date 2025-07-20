@@ -81,6 +81,14 @@ app.listen(PORT, async () => {
     {
       connection: redisConfig,
       lockDuration: 600000,
+      removeOnComplete: {
+        age: 3600,
+        count: 1000,
+      },
+      removeOnFail: {
+        age: 3600,
+        count: 500,
+      },
     }
   );
 
