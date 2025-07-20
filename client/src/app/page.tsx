@@ -1,6 +1,6 @@
 "use client";
 import Image from "next/image";
-import ImportHistory from "./import-logs/page";
+import ImportHistory from "../components/ImportHistory";
 
 export default function Home() {
   return (
