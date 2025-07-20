@@ -1,5 +1,5 @@
 import { Worker } from "bullmq";
-import redisConfig from "../config/redis.js";
+import redis from "../config/redis.js";
 import Job from "../models/jobs.js";
 import ImportLog from "../models/importLogs.js";
 
