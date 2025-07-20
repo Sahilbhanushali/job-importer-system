@@ -7,6 +7,8 @@ const redis = new Redis({
   port: process.env.REDIS_PORT,
   username: "default",
   password: process.env.REDIS_PASSWORD,
+  maxRetriesPerRequest: null,
+  enableReadyCheck: false,
 });
 
 redis.on("connect", () => console.log("Redis connected (ioredis)"));
