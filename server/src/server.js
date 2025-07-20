@@ -80,6 +80,7 @@ app.listen(PORT, async () => {
     },
     {
       connection: redisConfig,
+      lockDuration: 600000,
     }
   );
 
