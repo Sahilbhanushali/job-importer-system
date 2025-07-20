@@ -1,8 +1,8 @@
 import { Queue } from "bullmq";
 
-import redisClient from "../config/redis.js";
+import redis from "../config/redis.js";
 
 const jobQueue = new Queue("job-importer", {
-  connection: redisClient,
+  connection: redis,
 });
 export { jobQueue };
