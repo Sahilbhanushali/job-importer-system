@@ -18,6 +18,11 @@ app.use(cors());
 app.use("/api/import-logs", importLogsRoute);
 app.use("/api/jobs", jobsRoute);
 
+app.get("/api/ping", (req, res) => {
+  console.log("Ping received — keeping server awake");
+  res.send(" Ping OK");
+});
+
 app.listen(PORT, async () => {
   await connectDB();
   console.log(` Server is running on port ${PORT}`);
