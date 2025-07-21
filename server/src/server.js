@@ -27,6 +27,10 @@ app.listen(PORT, async () => {
   await connectDB();
   console.log(` Server is running on port ${PORT}`);
 
-  await fetchJobs();
+  setInterval(async () => {
+    console.log(" Running scheduled job fetch...");
+    await fetchJobs();
+  }, 60 * 60 * 1000);
+
   startWorker();
 });

@@ -47,8 +47,3 @@ export const fetchJobs = async () => {
     console.error(" Failed to add jobs to queue:", err.message);
   }
 };
-
-setInterval(async () => {
-  console.log(" Running scheduled job fetch...");
-  await fetchJobs();
-}, 60 * 60 * 1000);
