@@ -1,9 +1,27 @@
-const API_BASE =
-  process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "") ||
-  "http://localhost:5003";
+const sanitize = (value?: string | null) =>
+  value?.replace(/\/$/, "") || undefined;
+
+const getApiBase = () => {
+  const explicit = sanitize(process.env.NEXT_PUBLIC_API_URL);
+  if (explicit) {
+    return explicit;
+  }
+
+  if (typeof window !== "undefined" && window.location?.origin) {
+    return window.location.origin;
+  }
+
+  // In dev server-side contexts fall back to local API
+  if (process.env.NODE_ENV !== "production") {
+    return "http://localhost:5003";
+  }
+
+  return undefined;
+};
 
 const buildUrl = (path: string, params?: Record<string, string | number>) => {
-  const url = new URL(`${API_BASE}${path}`);
+  const base = getApiBase() || "http://localhost:5003";
+  const url = new URL(path, base);
   if (params) {
     Object.entries(params).forEach(([key, value]) => {
       if (value !== undefined && value !== null && value !== "") {
@@ -38,7 +56,7 @@ export const apiGet = async <T>(
 };
 
 export const apiPost = async <T>(path: string, body?: unknown) => {
-  const response = await fetch(`${API_BASE}${path}`, {
+  const response = await fetch(buildUrl(path), {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -50,7 +68,7 @@ export const apiPost = async <T>(path: string, body?: unknown) => {
 };
 
 export const apiPut = async <T>(path: string, body?: unknown) => {
-  const response = await fetch(`${API_BASE}${path}`, {
+  const response = await fetch(buildUrl(path), {
     method: "PUT",
     headers: {
       "Content-Type": "application/json",
@@ -62,7 +80,7 @@ export const apiPut = async <T>(path: string, body?: unknown) => {
 };
 
 export const apiDelete = async <T>(path: string) => {
-  const response = await fetch(`${API_BASE}${path}`, {
+  const response = await fetch(buildUrl(path), {
     method: "DELETE",
     headers: {
       "Content-Type": "application/json",
