@@ -1,124 +1,57 @@
-first i will tell all the steps from start till the end how i started and the go with the flow to complete the Task
+## Updated Architecture Overview
 
-starting with the backend first
+### 1. Data ingestion
 
-created folder of server with npm init -y
-then downloaded all the neccessary dependencies Such as mongoose express axios xml2js bullmq redis dotenv cors
+- `jobs/jobsFetcher.ts` reads a curated list of RSS/Atom feeds.
+- Each run acquires a Redis NX lock (`job-importer:feed-lock`) with TTL to avoid concurrent executions.
+- XML payloads are fetched with axios (timeout + UA header) and parsed via `xml2js`.
+- Aggregated jobs are chunked (200 per BullMQ job) and enqueued with metadata, exponential backoff, and dedup-ready IDs.
+- Fetch cadence is configurable via `JOB_FETCH_INTERVAL_MS`; optional immediate run on boot.
 
-started with running the server
-creating connection between the database
+### 2. Redis & BullMQ
 
-after that in the same Config folder created config and database for the redis cloud as well
+- Single `ioredis` client handles app-level commands, exposing latency probes + graceful shutdown handler.
+- BullMQ queue, scheduler, and events share a single connection config (TLS-ready). Queue-level logging captures failures/completions.
+- Worker concurrency is tunable (`WORKER_CONCURRENCY`). Each worker normalizes payloads, upserts jobs, and writes structured import logs.
+- Import logs store counts, failures, duration, queue job id, and auto-expire after 90 days to keep metrics manageable.
 
-after that created two models one for the Jobs and second for the imported logs
+### 3. MongoDB schema
 
-created a queue using BullQueue and redis Client
+- `jobs` collection:
+  - Unique `jobId`, `status`, `source`, `rawPayload`, `lastImportedAt`.
+  - Text index on title/company/description, plus status + recency indexes for dashboards.
+  - Failure metadata stored for UI badges & retries.
+- `import_logs` collection for operator insight (totals, duration, status). TTL index cleans up old runs.
 
-after that Created Job Fetcher components that fetches the data from the API converts it into json format using xml2js and Send it to the queue
-also added setinterval logic for that function and that function will be called every 1 hour that will fetch the data from the API and add it into the Queue
+### 4. API surface
 
-after that JobWorker Component whenever queue is updated workercomponent listens to it and import it into the Database
-Using Worker of bullmq
+- Express 5 with Helmet, compression, structured logging (Pino), rate-limiting, and strict CORS allow-list.
+- Routes:
+  - `/api/dashboard` -> summary cards + queue counts + recent logs.
+  - `/api/jobs` -> pagination/search/filter/sort + bulk retry/delete endpoints.
+  - `/api/imports/upload` -> CSV-driven manual imports (validated via Zod, chunked into queue).
+  - `/api/health` + `/api/health/redis` -> readiness endpoints for monitoring.
+  - `/api/import-logs` -> paginated history for UI chart/table.
+- Central error middleware + 404 handler keep responses predictable.
 
-after that created a Route and checked it into the browser
-works perfectly
+### 5. Frontend
 
-after that created next as client
+- Next.js 15 App Router, React 19, Tailwind v4.
+- Components:
+  - `DashboardStats`, `ImportForm`, `JobsTable`, `JobDetailModal`, `ImportHistory`, `Layout`.
+  - Toast + Theme providers for notifications and dark mode toggle (persisted in `localStorage`).
+- Client hits Express API directly via `NEXT_PUBLIC_API_URL` (no Next API proxy). `apiClient` handles base URL + credentials.
+- CSV uploader (Papaparse) supports preview, column mapping, validation, and upload progress.
+- Jobs table offers search, status filtering, sorting, pagination, and bulk actions surfaced via toasts.
 
-created folders under app one for the server which will be in api and other for the client
+### 6. Deployment considerations
 
-inside api and folder name created routes that will hit the endpoints and fetches the data after that in pages using useEffect bring thaat data into frontend
+- Dockerfiles for both server and client to support containerized deployments; compose file wires Redis + both services for local dev.
+- Graceful shutdown closes HTTP server, worker, BullMQ infrastructure, and Redis connections.
+- Logging is JSON in production (Pino) and pretty-printed locally.
 
-things That can be doned better
-i can use transactions Session for the Imports data that will be more secure if anythings happens in between the transactions end with the error
-uses for more Secure Communication
-websockets can be also implemented for the Live changes to get reflected without the refresh
+### 7. Future enhancements
 
-things i learned from this task
-
-first is redis and bullmq
-i did not known what the messaging que is and how it works
-redis concept i have read earlier but never used
-also the xml parser i have never used
-
-This document outlines the key logic and architectural choices made in the development of the Job Importer System.
-
-## Core Components
-
-### 1. **Job Fetcher **
-
-- Fetches XML/RSS job feeds.
-- Parses job data via `xml2js`.
-- Adds all jobs to Redis queue via BullMQ .
-
-### 2. **Redis Queue**
-
-- Redis is used for queue management via **BullMQ**.
-- It enables:
-  - Background processing
-  - Fault tolerance
-  - Job retries & delays
-
-### 3. **Job Worker **
-
-- Runs as a separate Node process.
-- Listens to `job-importer` queue.
-- On receiving a job:
-  - Checks if job already exists (`jobId`)
-  - Updates or inserts new jobs
-  - Logs the import event into `ImportLog`
-
-## MongoDB Collections
-
-### `jobs`
-
-- Stores all job listings.
-- Deduplicated based on `jobId`.
-
-### `import_logs`
-
-- Stores metadata of each import run:
-  - Total fetched
-  - New jobs
-  - Updated jobs
-  - Failed jobs
-
----
-
-## Next.js API Routes (Client Side)
-
-- `/api/import-logs`: Proxies Express API to fetch logs
-- `/api/jobs`: Proxies Express API to fetch job listings
-
----
-
-## Frontend Pages (Next.js)
-
-### `app/page.jsx`
-
-- Displays **Import History Table**
-- Shows time, total jobs fetched, new, updated, failed
-- Includes link to “View All Jobs”
-
-### `app/jobs/page.jsx`
-
-- Displays **Paginated Job Listings**
-- Each job shows title, company, type, location, date, and link
-
----
-
-## Integration Flow
-
-server starts trigger job fetch
-Jobs are queued into Redis
-Worker pulls jobs from Redis, stores in MongoDB
-Import logs are created for visibility
-Frontend visualizes logs and jobs via API
-
-## Deployment Checklist
-
-- [ ] Setup MongoDB (MongoDB Atlas or local)
-- [ ] Setup Redis (Redis Cloud or local)
-- [ ] Deploy Express API (Render, Railway, etc.)
-- [ ] Deploy Next.js frontend (Vercel, Netlify)
-- [ ] Connect environment variables
+- Add webhooks/websockets for live progress updates.
+- Implement Bull Board or Arena for queue visibility.
+- Extend test suite (Jest/Supertest) and add Cypress smoke tests for CSV importer.

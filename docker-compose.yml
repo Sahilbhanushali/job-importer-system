@@ -1,0 +1,35 @@
+version: "3.9"
+
+services:
+  redis:
+    image: redis:7.4-alpine
+    container_name: job-importer-redis
+    ports:
+      - "6379:6379"
+    command: ["redis-server", "--save", "60", "1", "--loglevel", "warning"]
+
+  api:
+    build:
+      context: ./server
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=production
+    ports:
+      - "5003:5003"
+    depends_on:
+      - redis
+
+  client:
+    build:
+      context: ./client
+    env_file:
+      - .env
+    environment:
+      - NEXT_PUBLIC_API_URL=http://api:5003
+    ports:
+      - "3000:3000"
+    depends_on:
+      - api
+
+
