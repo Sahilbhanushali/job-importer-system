@@ -11,7 +11,7 @@ const getApiBase = () => {
     return window.location.origin;
   }
 
-  // In dev server-side contexts fall back to local API
+  
   if (process.env.NODE_ENV !== "production") {
     return "http://localhost:5003";
   }

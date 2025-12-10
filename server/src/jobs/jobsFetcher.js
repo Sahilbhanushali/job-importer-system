@@ -2,6 +2,7 @@ import { parseJobXml } from "../utils/xmlParser.js";
 import { jobQueue } from "./jobQueue.js";
 import logger from "../config/logger.js";
 import { getRedisClient } from "../config/redis.js";
+import { pushToGoogleSheet } from "../utils/googleSheets.js";
 
 const redis = getRedisClient();
 const jobFeedURLs = [
@@ -70,6 +71,10 @@ export const fetchJobs = async () => {
       const jobs = await fetchJobsFromUrl(url);
       allJobs.push(...jobs);
     }
+
+    await pushToGoogleSheet(allJobs);
+   logger.info(`Pushed ${allJobs.length} jobs to Google Sheets`);
+
 
     if (allJobs.length === 0) {
       logger.warn("No jobs fetched from any feed");
